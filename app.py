@@ -9,18 +9,21 @@ from tqdm import tqdm
 import pickle
 
 # -------------------- LOAD MODEL --------------------
-model = ResNet50(
-    weights='imagenet',
-    include_top=False,
-    input_shape=(224, 224, 3)
-)
+def load_model():
+    model = ResNet50(
+        weights='imagenet',
+        include_top=False,
+        input_shape=(224, 224, 3)
+    )
 
-model.trainable = False
+    model.trainable = False
 
-model = tensorflow.keras.Sequential([
-    model,
-    GlobalMaxPooling2D()
-])
+    model = tensorflow.keras.Sequential([
+        model,
+        GlobalMaxPooling2D()
+    ])
+
+    return model
 
 
 # -------------------- FEATURE FUNCTION --------------------
@@ -36,26 +39,22 @@ def extract_features(img_path, model):
     return normalized_result
 
 
-# -------------------- MAIN LOGIC --------------------
-if os.path.exists('embeddings.pkl') and os.path.exists('filenames.pkl'):
-    print("✅ Loading saved features...")
+# -------------------- LOAD / CREATE FEATURES --------------------
+def load_features(model):
+    if os.path.exists('embeddings.pkl') and os.path.exists('filenames.pkl'):
+        feature_list = pickle.load(open('embeddings.pkl', 'rb'))
+        filenames = pickle.load(open('filenames.pkl', 'rb'))
+    else:
+        filenames = []
+        for file in os.listdir('images'):
+            filenames.append(os.path.join('images', file))
 
-    feature_list = pickle.load(open('embeddings.pkl', 'rb'))
-    filenames = pickle.load(open('filenames.pkl', 'rb'))
+        feature_list = []
 
-else:
-    print("⏳ Extracting features... (only first time)")
+        for file in tqdm(filenames):
+            feature_list.append(extract_features(file, model))
 
-    filenames = []
-    for file in os.listdir('images'):
-        filenames.append(os.path.join('images', file))
+        pickle.dump(feature_list, open('embeddings.pkl', 'wb'))
+        pickle.dump(filenames, open('filenames.pkl', 'wb'))
 
-    feature_list = []
-
-    for file in tqdm(filenames):
-        feature_list.append(extract_features(file, model))
-
-    pickle.dump(feature_list, open('embeddings.pkl', 'wb'))
-    pickle.dump(filenames, open('filenames.pkl', 'wb'))
-
-    print("✅ Features saved successfully!")
+    return feature_list, filenames
